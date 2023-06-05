@@ -7,18 +7,22 @@ public class TetrisBlock : MonoBehaviour
     public Vector3 rotationPoint;
     private float previousTime;
     public float fallTime = 0.8f;
-    public static int height = 20;
-    public static int width = 10;
-    private static Transform[,] grid = new Transform[width, height];
+    public Grid gridObject;
+    private bool isActive = true;
+    
     // Start is called before the first frame update
     void Start()
     {
-        
+        gridObject = GameObject.Find("Grid").GetComponent<Grid>();
     }
 
     // Update is called once per frame
     void Update()
     {
+        if (!isActive)
+        {
+            return;
+        }
         if (Input.GetKeyDown("a"))
         {
             transform.position += new Vector3(-1, 0, 0);
@@ -78,7 +82,7 @@ public class TetrisBlock : MonoBehaviour
 
     void CheckForLines()
     {
-        for (int i = height - 1; i >= 0; i--)
+        for (int i = Grid.height - 1; i >= 0; i--)
         {
             if (HasLine(i))
             {
@@ -90,9 +94,9 @@ public class TetrisBlock : MonoBehaviour
 
     bool HasLine(int i)
     {
-        for(int j = 0; j < width; j++)
+        for(int j = 0; j < Grid.width; j++)
         {
-           if (grid[j, i] == null)
+           if (gridObject.grid[j, i] == null)
             {
                 return false;
             }
@@ -103,35 +107,81 @@ public class TetrisBlock : MonoBehaviour
 
     void DeleteLine(int i)
     {
-        for (int j = 0; j < width; j++)
+        for (int j = 0; j < Grid.width; j++)
         {
-            Destroy(grid[j, i].gameObject);
-            grid[j, i] = null;
+            GameObject parent = gridObject.grid[j, i].gameObject;
+            parent.GetComponent<TetrisBlock>().HitWeakPoint(i, j);
+            //Destroy(gridObject.grid[j, i].gameObject);
+            gridObject.grid[j, i] = null;
         }
     }
 
-    void RowDown(int i)
+    void HitWeakPoint(int i, int j)
     {
-        for (int y = i; y < height; y++)
+        foreach (Transform child in transform)
         {
-            for (int j = 0; j < width; j++)
+            int roundedX = Mathf.RoundToInt(child.transform.position.x);
+            int roundedY = Mathf.RoundToInt(child.transform.position.y);
+            if (j == roundedX && i == roundedY)
             {
-                grid[j, y - 1] = grid[j, y];
-                grid[j, y] = null;
-                grid[j, y - 1].transform.position = new Vector3(0, 1, 0);
+                Destroy(child.gameObject);
             }
         }
+        if (GetWeakPointCount() == 0)
+        {
+            Die();
+        }
+    }
+
+    int GetWeakPointCount()
+    {
+        return transform.childCount;
+    }
+
+    void Die()
+    {
+        Destroy(gameObject);
+    }
+
+    void RowDown(int deletedRow)
+    {
+        Dictionary<GameObject, bool> parentsToDrop = new Dictionary<GameObject, bool>();
+        for (int row = deletedRow + 1; row < Grid.height; row++)
+        {
+            for (int column = 0; column < Grid.width; column++)
+            {
+                gridObject.grid[column, row - 1] = gridObject.grid[column, row];
+                gridObject.grid[column, row] = null;
+                if (gridObject.grid[column, row - 1] != null)
+                {
+                    GameObject parent = gridObject.grid[column, row - 1].gameObject;
+                    parentsToDrop[parent] = true;
+                   // gridObject.grid[column, row - 1].transform.position += new Vector3(0, -1, 0);
+                }
+            }
+        }
+        foreach(GameObject blockToDrop in parentsToDrop.Keys)
+        {
+            blockToDrop.GetComponent<TetrisBlock>().RecoilImpact();
+        }
+    }
+
+    void RecoilImpact()
+    {
+        gameObject.transform.position += new Vector3(0, -1, 0);
+
     }
 
     void AddToGrid()
     {
-        foreach(Transform children in transform)
+        foreach(Transform child in transform)
         {
-            int roundedX = Mathf.RoundToInt(children.transform.position.x);
-            int roundedY = Mathf.RoundToInt(children.transform.position.y);
+            int roundedX = Mathf.RoundToInt(child.transform.position.x);
+            int roundedY = Mathf.RoundToInt(child.transform.position.y);
 
-            grid[roundedX, roundedY] = children;
+            gridObject.grid[roundedX, roundedY] = transform;
         }
+        isActive = false;
     }
 
     bool ValidMove()
@@ -141,12 +191,12 @@ public class TetrisBlock : MonoBehaviour
             int roundedX = Mathf.RoundToInt(children.transform.position.x);
             int roundedY = Mathf.RoundToInt(children.transform.position.y);
 
-            if (roundedX < 0 || roundedX >= width || roundedY < 0 || roundedY >= height)
+            if (roundedX < 0 || roundedX >= Grid.width || roundedY < 0 || roundedY >= Grid.height)
             {
                 return false;
             }
 
-            if(grid[roundedX, roundedY] != null)
+            if(gridObject.grid[roundedX, roundedY] != null)
             {
                 return false;
             }

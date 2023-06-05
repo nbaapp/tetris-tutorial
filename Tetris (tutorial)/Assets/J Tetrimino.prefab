@@ -50,6 +50,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rotationPoint: {x: 0, y: 0, z: 0}
   fallTime: 0.8
+  gridObject: {fileID: 0}
 --- !u!1 &4482003574176858764
 GameObject:
   m_ObjectHideFlags: 0
